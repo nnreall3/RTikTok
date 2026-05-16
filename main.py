@@ -1,3 +1,49 @@
+import sys
+import subprocess
+import os
+
+# install tool packages
+def auto_setup():
+    required_packages = {
+        "customtkinter": "customtkinter",
+        "playwright": "playwright",
+        "playwright_stealth": "playwright-stealth"
+    }
+    
+    missing_packages = []
+    for module_name, pip_name in required_packages.items():
+        try:
+            __import__(module_name)
+        except ImportError:
+            missing_packages.append(pip_name)
+            
+    # إذا لقانا مكتبات ناقصة، غيثبتهم أوتوماتيك
+    if missing_packages:
+        print(f"[*] Missing dependencies found: {missing_packages}. Installing now...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", *missing_packages])
+            print("[*] Python packages installed successfully.")
+        except Exception as e:
+            print(f"[!] Error installing python packages: {e}")
+            sys.exit(1)
+
+    # التثبيت التلقائي لـ Chromium ديال Playwright
+    # كنحطو ملف مخفي (.playwright_ready) باش ما يبقاش يعاود التثبيت فكل مرة كيتفتح البرنامج
+    flag_file = os.path.join(os.path.dirname(__file__), ".playwright_ready")
+    if not os.path.exists(flag_file):
+        print("[*] First time setup: Downloading Chromium browser components...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "playwright", "install", "chromium"])
+            with open(flag_file, "w") as f:
+                f.write("ready")
+            print("[*] Browser environment is ready.")
+        except Exception as e:
+            print(f"[!] Error installing Chromium components: {e}")
+            sys.exit(1)
+
+
+auto_setup()
+
 import customtkinter as ctk 
 import asyncio
 import threading
