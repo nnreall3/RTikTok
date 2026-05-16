@@ -2,8 +2,30 @@ import sys
 import subprocess
 import os
 
-# install tool packages
 def auto_setup():
+
+    is_venv = sys.prefix != sys.base_prefix or 'VIRTUAL_ENV' in os.environ
+    
+    if not is_venv:
+        venv_dir = os.path.join(os.path.dirname(__file__), "venv")
+        if not os.path.exists(venv_dir):
+            print("[*] First time setup: Creating an isolated virtual environment (venv)...")
+            try:
+                subprocess.check_call([sys.executable, "-m", "venv", venv_dir])
+            except Exception as e:
+                print(f"[!] Error creating venv: {e}")
+                sys.exit(1)
+        
+
+        if os.name == "nt":
+            venv_python = os.path.join(venv_dir, "Scripts", "python.exe")
+        else:
+            venv_python = os.path.join(venv_dir, "bin", "python")
+            
+        print("[*] Switching to virtual environment...")
+
+        os.execv(venv_python, [venv_python] + sys.argv)
+
     required_packages = {
         "customtkinter": "customtkinter",
         "playwright": "playwright",
@@ -17,30 +39,26 @@ def auto_setup():
         except ImportError:
             missing_packages.append(pip_name)
             
-    # إذا لقانا مكتبات ناقصة، غيثبتهم أوتوماتيك
     if missing_packages:
-        print(f"[*] Missing dependencies found: {missing_packages}. Installing now...")
+        print(f"[*] Found missing packages inside venv: {missing_packages}. Installing safely...")
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", *missing_packages])
-            print("[*] Python packages installed successfully.")
+            print("[*] Python packages installed successfully inside venv.")
         except Exception as e:
             print(f"[!] Error installing python packages: {e}")
             sys.exit(1)
 
-    # التثبيت التلقائي لـ Chromium ديال Playwright
-    # كنحطو ملف مخفي (.playwright_ready) باش ما يبقاش يعاود التثبيت فكل مرة كيتفتح البرنامج
     flag_file = os.path.join(os.path.dirname(__file__), ".playwright_ready")
     if not os.path.exists(flag_file):
-        print("[*] First time setup: Downloading Chromium browser components...")
+        print("[*] Setting up Chromium browser components inside venv...")
         try:
             subprocess.check_call([sys.executable, "-m", "playwright", "install", "chromium"])
             with open(flag_file, "w") as f:
                 f.write("ready")
-            print("[*] Browser environment is ready.")
+            print("[*] Browser environment is fully configured.")
         except Exception as e:
             print(f"[!] Error installing Chromium components: {e}")
             sys.exit(1)
-
 
 auto_setup()
 
