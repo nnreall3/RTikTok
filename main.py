@@ -1,9 +1,9 @@
 import sys
 import subprocess
 import os
+import re 
 
 def auto_setup():
-
     is_venv = sys.prefix != sys.base_prefix or 'VIRTUAL_ENV' in os.environ
     
     if not is_venv:
@@ -16,20 +16,20 @@ def auto_setup():
                 print(f"[!] Error creating venv: {e}")
                 sys.exit(1)
         
-
         if os.name == "nt":
             venv_python = os.path.join(venv_dir, "Scripts", "python.exe")
         else:
             venv_python = os.path.join(venv_dir, "bin", "python")
             
         print("[*] Switching to virtual environment...")
-
         os.execv(venv_python, [venv_python] + sys.argv)
 
     required_packages = {
         "customtkinter": "customtkinter",
         "playwright": "playwright",
-        "playwright_stealth": "playwright-stealth"
+        "playwright_stealth": "playwright-stealth",
+        "arabic_reshaper": "arabic-reshaper",
+        "bidi": "python-bidi"
     }
     
     missing_packages = []
@@ -62,15 +62,32 @@ def auto_setup():
 
 auto_setup()
 
+import arabic_reshaper
+from bidi.algorithm import get_display
 import customtkinter as ctk 
 import asyncio
 import threading
 from playwright.async_api import async_playwright
 
+def safe_ar(text):
+    return get_display(arabic_reshaper.reshape(text))
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 class SocialScanner(ctk.CTk):
+    def fix_arabic(self, text):
+        if not text:
+            return ""
+        
+        def replace_arabic(match):
+            arabic_part = match.group(0)
+            reshaped = arabic_reshaper.reshape(arabic_part)
+            return get_display(reshaped)
+        
+        arabic_pattern = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+(?:\s+[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+)*')
+        
+        return arabic_pattern.sub(replace_arabic, text)
+
     def __init__(self):
         super().__init__()
 
@@ -89,36 +106,48 @@ class SocialScanner(ctk.CTk):
         self.status_label = ctk.CTkLabel(self, text="Status: Idle", text_color="gray")
         self.status_label.pack()
 
-        self.output_box = ctk.CTkTextbox(self, width=760, height=400, font=("Consolas", 13))
+        self.output_box = ctk.CTkTextbox(self, width=760, height=400, font=("Segoe UI", 13))
         self.output_box.pack(pady=20)
 
         self.report_database = {
-            "Fraud/Scam (النصب والاحتيال)": {
+            "Frauds and Scams -> Financial Cybercrime": {
                 "keywords": [
                     "crypto", "whatsapp", "money", "free", "ربح", "استثمار", "تداول", "شحن", "فلوس", 
-                    "منصة", "ثغرة", "ربح سريع", "كاش", "طريقة الربح", "1000$", "فودافون كاش", "تعبئة", "مسابقة"
+                    "منصة", "ثغرة", "ربح سريع", "كاش", "طريقة الربح", "1000$", "فودافون كاش", "تعبئة", 
+                    "مسابقة", "ربح المال", "سحب", "cmi", "بايبال", "الربح", "💸", "💰"
                 ],
-                "severity": "CRITICAL (Auto-Ban Trigger)",
-                "path": "Report Account -> Frauds and Scams -> Financial Scams / Impersonation",
-                "note": "TikTok AI closely tracks external links and financial magic words. Mass-report triggers instant freeze."
+                "severity": "CRITICAL (Automated AI Suppression Enabled)",
+                "path": "Report -> Report Account -> Frauds and Scams -> Financial Scams",
+                "trigger_mechanism": f"AI scans Bio for off-platform links (Telegram/WhatsApp) combined with keywords. If matched, triggers shadowban or instant live-stream termination."
             },
-            "Hate Speech / Harassment (الكراهية والتحرش)": {
+            "Harassment and Bullying -> Targeted Hate/Defamation": {
                 "keywords": [
                     "hate", "attack", "ugly", "عنصري", "قتل", "حمار", "كلب", "كافر", "ملحد", "شفار", 
-                    "الحمار", "الكلب", "القرود", "بوليساريو", "خائن", "تفوه", "اللعنة", "ديوث"
+                    "الحمار", "الكلب", "القرود", "بوليساريو", "خائن", "تفوه", "اللعنة", "ديوث", "خانز", 
+                    "بوزبال", "ولد القحبة", "مكلخ", "الشفار", "الحقير"
                 ],
-                "severity": "HIGH",
-                "path": "Report Account -> Harassment or Bullying -> Targeted Harassment",
-                "note": "Flags bullying targeted at individuals. The system cross-checks user captions and names."
+                "severity": "HIGH (Human Moderator Queue Router)",
+                "path": "Report -> Report Account -> Harassment or Bullying -> Targeted Harassment",
+                "trigger_mechanism": f"Requires the keyword to exist in Username/Nickname or Caption targeting a specific entity. Human trust safety teams for the MENA region verify slang context."
             },
-            "Inappropriate/Adult Content (محتوى غير لائق)": {
+            "Regulated Goods -> Unlawful Promotion/Trafficking": {
+                "keywords": [
+                    "دواء", "حبوب", "سلاح", "شراب", "الحشيش", "القرطاس", "الشراب", "weed", "shisha", 
+                    "شيشة", "ترامادول", "اكستازي", "ڤيب", "vape", "دخاخين", "توصيل سري"
+                ],
+                "severity": "CRITICAL (Immediate Account Restrict)",
+                "path": "Report -> Report Account -> Regulated Goods and Controlled Substances -> Illegal Sales",
+                "trigger_mechanism": f"Automated OCR text matching on video thumbnails and bio text. Zero tolerance for local pharmaceutical or drug-related slangs."
+            },
+            "Nudity and Sexual Content -> Commercial Adult Content": {
                 "keywords": [
                     "18+", "link in bio", "adult", "سكس", "متحول", "بث مباشر +18", "قحبة", "شرموطة", 
-                    "نودز", "nudes", "روتيني", "روتيني اليومي", "مؤخرة", "بث ساخن", "sex", "hot", "xxx", "ass", "pussy", "bot telegrame", "dih" "dick"
+                    "نودز", "nudes", "روتيني", "روتيني اليومي", "مؤخرة", "بث ساخن", "sex", "hot", "xxx", 
+                    "ass", "pussy", "bot telegrame", "dick", "سحاق", "لوطي", "بث للمتزوجين", "كاميرا مباشرة"
                 ],
-                "severity": "IMMEDIATE BAN",
-                "path": "Report Account -> Nudity and Sexual Content -> Sexual Exploitation",
-                "note": "Zero tolerance grid. The AI immediately nukes the account if keywords match video captions or bio."
+                "severity": "IMMEDIATE BAN (Zero-Tolerance Automated Grid)",
+                "path": "Report -> Report Account -> Nudity and Sexual Content -> Adult Sexual Exploitation",
+                "trigger_mechanism": f"Computer Vision scans the Profile Picture (Avatar) and cross-checks the Bio for keywords like 'link in bio' or 'nudes'. Computer Vision flag + Keyword match = Permanent Ban in < 5 seconds."
             }
         }
 
@@ -155,7 +184,7 @@ class SocialScanner(ctk.CTk):
                 page = await context.new_page()
 
                 await page.goto(f"https://www.tiktok.com/@{username}", wait_until="domcontentloaded", timeout=60000)
-                await asyncio.sleep(7)
+                await asyncio.sleep(10)
                 
                 # userScan
                 username_text = ""
@@ -171,7 +200,6 @@ class SocialScanner(ctk.CTk):
                         display_name_text = await n_el.inner_text()
                 except:
                     pass
-                # --------------------------------------------------
 
                 # bioScan
                 bio_text = ""
@@ -202,7 +230,6 @@ class SocialScanner(ctk.CTk):
                 except: pass
                 
                 all_videos_text = " ".join(video_captions)
-
                 
                 self.log("-" * 40)
                 self.log(f"[i] Target Meta Inspected:")
@@ -212,7 +239,6 @@ class SocialScanner(ctk.CTk):
                 self.log(f"    -> Photo Metadata: {photo_desc if photo_desc else '[No Metadata]'}")
                 self.log(f"    -> Captured Video Captions: {len(video_captions)} titles.")
                 self.log("-" * 40)
-
                
                 full_target_data = f"{username_text} {display_name_text} {bio_text} {photo_desc} {all_videos_text}".lower()
 
@@ -220,7 +246,9 @@ class SocialScanner(ctk.CTk):
 
                 for violation_name, data in self.report_database.items():
                     for word in data["keywords"]:
-                        if word.lower() in full_target_data:
+                      
+                        pattern = r"[\W_]*".join(list(word))
+                        if re.search(pattern, full_target_data, re.IGNORECASE):
                             detected_violations.append(violation_name)
                             break
 
@@ -229,14 +257,19 @@ class SocialScanner(ctk.CTk):
                 self.log("="*65)
 
                 if detected_violations:
-                    self.log(f"[!] WARNING: Target profile contains illegal content.")
+                    self.log(f"[!] WARNING: Target profile triggers TikTok Enforcement Matrix.")
                     for violation in set(detected_violations):
                         info = self.report_database[violation]
-                        self.log(f"\n[+] DETECTED: {violation}")
-                        self.log(f"    - Threat Level: {info['severity']}")
-                        self.log(f"    - FASTEST BAN PATH (مسار الإبلاغ الأسرع):")
+                        self.log(f"\n[+] VIOLATION CATEGORY: {violation}")
+                        self.log(f"    - Severity Level: {info['severity']}")
+                        
+                        ar_path_label = safe_ar("(اتبع هاد المسار بدقة):")
+                        self.log(f"    - EXACT REPORTING PATH {ar_path_label}")
                         self.log(f"      👉 {info['path']}")
-                        self.log(f"    - Strategy Note: {info['note']}")
+                        
+                        ar_trigger_label = safe_ar("(آلية تفعيل البند أوتوماتيكياً):")
+                        self.log(f"    - HOW TO EXPLOIT THE AI {ar_trigger_label}")
+                        self.log(f"      💡 {info['trigger_mechanism']}")
                 else:
                     self.log("[✔] CLEAN: No standard violations found across Username, Bio, Photo, or Video Captions.")
                 
