@@ -75,6 +75,19 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 class SocialScanner(ctk.CTk):
+    def format_mixed_line(self, label, value):
+        if not value:
+            return f"{label}[Empty]"
+        
+        # إذا كان النص فيه حروف عربية، نصلحوه بوحدو
+        has_arabic = bool(re.search(r'[\u0600-\u06FF]', value))
+        if has_arabic:
+            reshaped = arabic_reshaper.reshape(value)
+            fixed_value = get_display(reshaped)
+            return f"{label}{fixed_value}"
+        
+        return f"{label}{value}"
+
     def fix_arabic(self, text):
         if not text:
             return ""
@@ -114,7 +127,7 @@ class SocialScanner(ctk.CTk):
                 "keywords": [
                     "crypto", "whatsapp", "money", "free", "ربح", "استثمار", "تداول", "شحن", "فلوس", 
                     "منصة", "ثغرة", "ربح سريع", "كاش", "طريقة الربح", "1000$", "فودافون كاش", "تعبئة", 
-                    "مسابقة", "ربح المال", "سحب", "cmi", "بايبال", "الربح", "💸", "💰"
+                    "مسابقة", "ربح المال", "سحب", "cmi", "بايبال", "الربح", "💸", "💰", "giveaway", "telegram"
                 ],
                 "severity": "CRITICAL (Automated AI Suppression Enabled)",
                 "path": "Report -> Report Account -> Frauds and Scams -> Financial Scams",
@@ -124,7 +137,7 @@ class SocialScanner(ctk.CTk):
                 "keywords": [
                     "hate", "attack", "ugly", "عنصري", "قتل", "حمار", "كلب", "كافر", "ملحد", "شفار", 
                     "الحمار", "الكلب", "القرود", "بوليساريو", "خائن", "تفوه", "اللعنة", "ديوث", "خانز", 
-                    "بوزبال", "ولد القحبة", "مكلخ", "الشفار", "الحقير"
+                    "بوزبال", "ولد القحبة", "مكلخ", "الشفار", "الحقير", "برهوش", "مسخوط", "Zbi", "9lawi"
                 ],
                 "severity": "HIGH (Human Moderator Queue Router)",
                 "path": "Report -> Report Account -> Harassment or Bullying -> Targeted Harassment",
@@ -233,10 +246,13 @@ class SocialScanner(ctk.CTk):
                 
                 self.log("-" * 40)
                 self.log(f"[i] Target Meta Inspected:")
-                self.log(f"    -> Target User: {username_text if username_text else username}")
-                self.log(f"    -> Target Name: {display_name_text if display_name_text else '[Not Found]'}")
-                self.log(f"    -> Bio Text: {bio_text if bio_text else '[Empty]'}")
-                self.log(f"    -> Photo Metadata: {photo_desc if photo_desc else '[No Metadata]'}")
+                
+               
+                self.log(self.format_mixed_line("    -> Target Name: ", username_text if username_text else username))
+                self.log(self.format_mixed_line("    -> Target User: ", display_name_text))
+                self.log(self.format_mixed_line("    -> Bio Text: ", bio_text))
+                self.log(self.format_mixed_line("    -> Photo Metadata: ", photo_desc))
+                
                 self.log(f"    -> Captured Video Captions: {len(video_captions)} titles.")
                 self.log("-" * 40)
                
