@@ -79,7 +79,6 @@ class SocialScanner(ctk.CTk):
         if not value:
             return f"{label}[Empty]"
         
-        # إذا كان النص فيه حروف عربية، نصلحوه بوحدو
         has_arabic = bool(re.search(r'[\u0600-\u06FF]', value))
         if has_arabic:
             reshaped = arabic_reshaper.reshape(value)
